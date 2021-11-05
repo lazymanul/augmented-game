@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+  </head>
+  <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1c2407b26c61958baa93967b5412487cd94b290b/dist/aframe-master.min.js"></script>  
+  <script src="AR.js-master/aframe/build/aframe-ar-nft.js"></script> 
+  
+
+  <body style="margin : 0px; overflow: hidden;">
+    <script type="text/javascript">
+      var milk = 0;
+      const farms = new Map();
+      const cows = new Map();
+      const farmDistance = 6;
+      const dT = 200;
+      
+      window.addEventListener('load', () => {
+        //add farm (markers 1 - 3)         
+        
+        const marker1 = document.getElementById('farm1');
+        farms.set('farm1', marker1);
+        
+        let check1; 
+        marker1.addEventListener('markerFound', () => {
+          console.log(marker1.getAttribute('value') + ' found');
+          check1 = setInterval(() => {      
+            let farmPosition = farms.get('farm1').object3D.position;
+            //console.log(cows.size);
+            for (let [key, value] of cows) {              
+              let cowPosition = value.object3D.position;
+              let distance = farmPosition.distanceTo(cowPosition)
+              if (distance < farmDistance) {
+                console.log(distance);
+              }
+            }                              
+          }, dT);
+        });
+
+        marker1.addEventListener('markerLost', () => {
+          console.log(marker1.getAttribute('value') + ' lost');
+          clearInterval(check1);
+        })        
+
+        //add cows (markers 5 - 12)
+        const marker5 = document.getElementById('cow5');
+        cows.set('cow5', marker5);
+
+        marker5.addEventListener('markerFound', () => {
+          console.log(marker5.getAttribute('value') + ' found');          
+        });
+
+        marker5.addEventListener('markerLost', () => {
+          console.log(marker5.getAttribute('value') + ' lost');
+        })      
+      })
+    
+
+    </script>
+
+
+
+    <a-scene
+      vr-mode-ui="enabled: false;"
+      renderer="logarithmicDepthBuffer: true;"
+      embedded
+      arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+  
+      <a-marker id='farm1' type='barcode' value='1'>
+          <!--a-box position='0 0.5 0' color="yellow"></a-box-->
+          <a-entity
+            position="0 0 0"
+            scale="0.05 0.05 0.05"
+            gltf-model="AR.js-master/aframe/examples/image-tracking/nft/trex/scene.gltf"
+          ></a-entity>
+      </a-marker>
+
+      <a-marker id='cow5' type='barcode' value='5'>
+        <!--a-box position='0 0.5 0' color="yellow"></a-box-->
+        <a-entity
+          position="0 0 0"
+          scale="0.05 0.05 0.05"
+          gltf-model="AR.js-master/aframe/examples/image-tracking/nft/trex/scene.gltf"
+        ></a-entity>
+    </a-marker>
+  
+      <a-entity camera></a-entity>
+    </a-scene>
+    
+  </body>
+</html>
