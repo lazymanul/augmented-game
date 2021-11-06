@@ -4,87 +4,206 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
   </head>
   <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1c2407b26c61958baa93967b5412487cd94b290b/dist/aframe-master.min.js"></script>  
-  <script src="AR.js-master/aframe/build/aframe-ar-nft.js"></script> 
-  
+  <script src="AR.js-master/aframe/build/aframe-ar.js"></script> 
 
   <body style="margin : 0px; overflow: hidden;">
     <script type="text/javascript">
+
+      function getMinDistance(cowName, remoteObjects) {
+        let minDistance = Number.MAX_SAFE_INTEGER;
+        let cowPosition = cowMarkers.get(cowName).object3D.position;
+        for (let [key, value] of remoteObjects) {              
+            let objectPosition = value.object3D.position;
+            let distance = cowPosition.distanceTo(objectPosition);
+            if (distance < minDistance) {
+              minDistance = distance;
+            }
+        }
+        return minDistance;
+      }
+
+      function isOnFarm(cowName) {
+        let distance = getMinDistance(cowName, farmMarkers);
+        if (distance < farmDistance) {
+          console.log('farm distance ' + distance);
+          return true;
+        }
+        return false;
+      }
+
+      function isProtected(cowName) {
+        return false;
+      }
+
+      function isTransformed(cowName) {
+        if (cowState.get(cowName) == 3) {
+          return true;
+        }          
+        if (isProtected(cowName)) {
+          return false;            
+        }
+        if (Math.random() < transformProbability) {
+          cowState.set(cowName, 3);          
+          return true;
+        }
+      }
+    
+
+      function isOnCarantine(cowName) {
+        let distance = getMinDistance(cowName, carantineMarkers);
+        if (distance < carantineDistance) {
+          console.log('carantine distance ' + distance);
+          return true;
+        }
+        return false;
+      }
+
+      function updateCowModel(cowName, color) {
+        cowBoxName = cowName + 'box';
+        cowbox = document.getElementById(cowBoxName);
+        cowbox.setAttribute('color', color);
+      }
+
       var milk = 0;
-      const farms = new Map();
-      const cows = new Map();
-      const farmDistance = 6;
-      const dT = 200;
+      const farmMarkers = new Map();
+
+      const cowMarkers = new Map();
+      const cowState = new Map();
+
+      const robotMarkers = new Map();
+      const carantineMarkers = new Map();
+      const carantineDistance = 1.8;
+
+      const farmDistance = 1.75;
+      const dT = 300;
+      const dMilk = 0.001;
+      const transformProbability = 0.1;
       
       window.addEventListener('load', () => {
-        //add farm (markers 1 - 3)         
-        
+        //add farm (markers 1 - 3)    
         const marker1 = document.getElementById('farm1');
-        farms.set('farm1', marker1);
-        
-        let check1; 
+        farmMarkers.set('farm1', marker1);
+
         marker1.addEventListener('markerFound', () => {
-          console.log(marker1.getAttribute('value') + ' found');
-          check1 = setInterval(() => {      
-            let farmPosition = farms.get('farm1').object3D.position;
-            //console.log(cows.size);
-            for (let [key, value] of cows) {              
-              let cowPosition = value.object3D.position;
-              let distance = farmPosition.distanceTo(cowPosition)
-              if (distance < farmDistance) {
-                console.log(distance);
-              }
-            }                              
-          }, dT);
+          console.log(marker1.getAttribute('value') + ' found');          
         });
 
         marker1.addEventListener('markerLost', () => {
           console.log(marker1.getAttribute('value') + ' lost');
-          clearInterval(check1);
-        })        
+        });  
+        
+        const marker2 = document.getElementById('farm2');
+        farmMarkers.set('farm2', marker2);
 
-        //add cows (markers 5 - 12)
-        const marker5 = document.getElementById('cow5');
-        cows.set('cow5', marker5);
-
-        marker5.addEventListener('markerFound', () => {
-          console.log(marker5.getAttribute('value') + ' found');          
+        marker2.addEventListener('markerFound', () => {
+          console.log(marker2.getAttribute('value') + ' found');          
         });
 
+        marker2.addEventListener('markerLost', () => {
+          console.log(marker2.getAttribute('value') + ' lost');
+        });        
+
+        //add carantine (marker 16)
+        const marker16 = document.getElementById('carantine16');
+        carantineMarkers.set('carantine16', marker16);
+
+        marker16.addEventListener('markerFound', () => {
+          console.log(marker16.getAttribute('value') + ' found');          
+        });
+
+        marker16.addEventListener('markerLost', () => {
+          console.log(marker16.getAttribute('value') + ' lost');
+        });  
+
+
+        //add cows (markers 5-12)
+        const marker5 = document.getElementById('cow5');
+        cowMarkers.set('cow5', marker5);   
+        cowState.set('cow5', 1);
+        
+        let check5;       
+        marker5.addEventListener('markerFound', () => {
+          console.log(marker5.getAttribute('value') + ' found');
+          check5 = setInterval(() => {
+              cowName = 'cow5';    
+              
+              if (isOnFarm(cowName)) {
+                if (isTransformed(cowName)) {
+                  updateCowModel(cowName, 'red');
+                  milk -= dMilk;  
+                } else {
+                  updateCowModel(cowName, 'green');              
+                  milk += dMilk;
+                }                         
+              } else {
+                if (isTransformed(cowName)) {
+                  if (isOnCarantine(cowName)) {
+                    updateCowModel(cowName, 'white');
+                  } else { 
+                    updateCowModel(cowName, 'red');
+                  }                 
+                } else {
+                  updateCowModel(cowName, 'white');
+                }                
+              }
+          }, dT);
+        });
+        
         marker5.addEventListener('markerLost', () => {
-          console.log(marker5.getAttribute('value') + ' lost');
-        })      
+         console.log(marker5.getAttribute('value') + ' lost');
+         clearInterval(check5);
+        });
+    
       })
     
 
     </script>
 
 
-
-    <a-scene
+    <a-scene cyberfarm
       vr-mode-ui="enabled: false;"
       renderer="logarithmicDepthBuffer: true;"
       embedded
       arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
   
       <a-marker id='farm1' type='barcode' value='1'>
-          <!--a-box position='0 0.5 0' color="yellow"></a-box-->
-          <a-entity
+          <a-box position='0 0.5 0' color="yellow"></a-box>
+          <!--a-entity
             position="0 0 0"
             scale="0.05 0.05 0.05"
             gltf-model="AR.js-master/aframe/examples/image-tracking/nft/trex/scene.gltf"
-          ></a-entity>
+          ></a-entity-->
       </a-marker>
 
-      <a-marker id='cow5' type='barcode' value='5'>
-        <!--a-box position='0 0.5 0' color="yellow"></a-box-->
-        <a-entity
+      <a-marker id='farm2' type='barcode' value='2'>
+        <a-box position='0 0.5 0' color="yellow"></a-box>
+        <!--a-entity
           position="0 0 0"
           scale="0.05 0.05 0.05"
           gltf-model="AR.js-master/aframe/examples/image-tracking/nft/trex/scene.gltf"
-        ></a-entity>
+        ></a-entity-->
     </a-marker>
+
+      <a-marker id='cow5' type='barcode' value='5'>
+        <a-box id='cow5box' position='0 0.5 0' color="white"></a-box>
+        <!--a-entity
+          position="0 0 0"
+          scale="0.05 0.05 0.05"
+          gltf-model="AR.js-master/aframe/examples/image-tracking/nft/trex/scene.gltf"
+        ></a-entity-->
+    </a-marker>
+
+    <a-marker id='carantine16' type='barcode' value='16'>
+      <a-box position='0 0.5 0' color="blue"></a-box>
+      <!--a-entity
+        position="0 0 0"
+        scale="0.05 0.05 0.05"
+        gltf-model="AR.js-master/aframe/examples/image-tracking/nft/trex/scene.gltf"
+      ></a-entity-->
+  </a-marker>
   
-      <a-entity camera></a-entity>
+
+    <a-entity camera></a-entity>
     </a-scene>
     
   </body>
